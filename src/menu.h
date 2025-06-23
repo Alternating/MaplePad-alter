@@ -1,5 +1,5 @@
 /*
-    Menu
+    Menu - Fixed version without conflicts
 */
 
 #pragma once
@@ -10,12 +10,21 @@
 #include <math.h>
 #include <time.h>
 
-#include "sh8601.h"
+#include "sh8601.h"     // Now just a minimal header
 #include "ssd1331.h"
 #include "ssd1306.h"
 
 #include "pico/stdlib.h"
 
+// Forward declarations - don't redefine types from maple.h
+struct ButtonInfo_s; // Forward declaration only
+typedef struct ButtonInfo_s ButtonInfo; // Use same name
+
+// External references to variables defined in maple.c
+extern uint8_t flashData[];
+extern ButtonInfo ButtonInfos[];
+
+// Flash data accessors (these reference flashData defined in maple.c)
 #define xCenter flashData[0]
 #define xMin flashData[1]
 #define xMax flashData[2]
@@ -51,54 +60,29 @@
 #define autoResetTimer flashData[32] // units are 2s, max value 8.5 minutes
 #define version flashData[33]
 
-extern ButtonInfo ButtonInfos[];
-
+// Menu structure - forward declaration only to avoid conflicts
 typedef struct menu_s menu;
 
-struct menu_s {
-  char name[14];
-  int type; // 0: submenu, 1: boolean toggle, 2: function, 3: inert
-  bool visible;
-  bool selected;
-  bool on;
-  bool enabled; // control for hidden menu items (ssd1306)
-  int (*run)(menu *self);
-};
+// Don't redefine struct menu_s here - it should be in maple.h or a separate menu implementation file
 
+// Function prototypes
 int paletteVMU(menu *);
-
 int paletteUI(menu *);
-
 int buttontest(menu *);
-
 int stickcal(menu *);
-
 int trigcal(menu *);
-
 int deadzone(menu *);
-
 int toggleOption(menu *);
-
 int exitToPad(menu *);
-
 int dummy(menu *);
-
 int mainmen(menu *);
-
 int sconfig(menu *);
-
 int tconfig(menu *);
-
 int setting(menu *);
 
 void getSelectedElement(void);
-
 void loadFlags(void);
-
 void updateFlags(void);
-
 void redrawMenu(void);
-
 bool rainbowCycle(struct repeating_timer *);
-
 void runMenu(void);

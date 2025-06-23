@@ -14,7 +14,7 @@
 #define SCK 2
 #define MOSI 3
 #define DC 14
-#define RST 13
+#define RST 15
 
 #define OLED_W 96
 #define OLED_H 64

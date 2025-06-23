@@ -19,9 +19,7 @@
 #include "hardware/pio.h"
 #include "hardware/pwm.h"
 #include "hardware/timer.h"
-#include "maple.pio.h"
 #include "pico/multicore.h"
-#include "pico/stdlib.h"
 #include "pico/time.h"
 #include "state_machine.h"
 
@@ -50,7 +48,50 @@
 #define VER_1_6 0x0B
 #define VER_1_7 0x0C
 
+// Constants that were missing
+#define BLOCK_SIZE 512
+
+// External variable declarations (variables are defined in maple.c)
+extern uint8_t MemoryCard[];
 extern uint8_t flashData[];
+extern uint16_t color;
+extern bool sd_card_available;
+
+// Flash data accessors (these reference flashData defined in maple.c)
+#define xCenter flashData[0]
+#define xMin flashData[1]
+#define xMax flashData[2]
+#define yCenter flashData[3]
+#define yMin flashData[4]
+#define yMax flashData[5]
+#define lMin flashData[6]
+#define lMax flashData[7]
+#define rMin flashData[8]
+#define rMax flashData[9]
+#define invertX flashData[10]
+#define invertY flashData[11]
+#define invertL flashData[12]
+#define invertR flashData[13]
+#define firstBoot flashData[14]
+#define currentPage flashData[15]
+#define rumbleEnable flashData[16]
+#define vmuEnable flashData[17]
+#define oledFlip flashData[18]
+#define swapXY flashData[19]
+#define swapLR flashData[20]
+#define oledType flashData[21]
+#define triggerMode flashData[22] // 1 = analog, 0 = digital
+#define xDeadzone flashData[23]
+#define xAntiDeadzone flashData[24]
+#define yDeadzone flashData[25]
+#define yAntiDeadzone flashData[26]
+#define lDeadzone flashData[27]
+#define lAntiDeadzone flashData[28]
+#define rDeadzone flashData[29]
+#define rAntiDeadzone flashData[30]
+#define autoResetEnable flashData[31]
+#define autoResetTimer flashData[32] // units are 2s, max value 8.5 minutes
+#define version flashData[33]
 
 void updateFlashData();
 
@@ -107,40 +148,10 @@ typedef struct PacketLCDInfo_s {
   uint8_t dY;           // Number of Y-axis dots
   uint8_t GradContrast; // Upper nybble Gradation (bits/dot), lower nybble contrast (0 to 16 steps)
   uint8_t Reserved;
-
 } PacketLCDInfo;
 
 typedef struct PacketPuruPuruInfo_s {
   uint Func;     // Nb. Big endian
-  uint8_t VSet0; // Upper nybble is number of vibration sources, lower nybble is vibration source location and vibration source axis
-  uint8_t Vset1; // b7: Variable vibration intensity flag, b6: Continuous vibration flag, b5: Vibration direction control flag, b4: Arbitrary waveform flag
-                 // Lower nybble is Vibration Attribute flag (fixed freq. or ranged freq.)
-  uint8_t FMin;  // Minimum vibration frequency when VA = 0000 (Ffix when VA = 0001, reserved when VA = 1111)
-  uint8_t FMax;  // Maximum vibration frequency when VA = 0000 (reserved when VA= 0001 or 1111)
-
-} PacketPuruPuruInfo;
-
-typedef struct PacketControllerCondition_s {
-  uint Condition; // Nb. Big endian
-  uint16_t Buttons;
-  uint8_t RightTrigger;
-  uint8_t LeftTrigger;
-  uint8_t JoyX;
-  uint8_t JoyY;
-  uint8_t JoyX2;
-  uint8_t JoyY2;
-} PacketControllerCondition;
-
-typedef struct PacketPuruPuruCondition_s {
-  uint Func;     // Nb. Big endian
-  uint8_t Ctrl;  // Vibration control
-  uint8_t Power; // Vibration intensity
-  uint8_t Freq;  // Vibration frequency
-  uint8_t Inc;   // Vibration inclination
-} PacketPuruPuruCondition;
-
-typedef struct PacketTimerCondition_s {
-  uint Func;           // Nb. Big endian
   uint8_t BT;          // Button data
   uint8_t Reserved[3]; // Reserved (0)
 } PacketTimerCondition;
@@ -162,107 +173,39 @@ typedef struct TimerBlockReadPacket_s {
   uint8_t Date[8];
 } TimerBlockReadPacket;
 
-typedef struct FACKPacket_s {
-  uint BitPairsMinus1;
-  PacketHeader Header;
-  uint CRC;
-} FACKPacket;
-
-typedef struct FInfoPacket_s {
-  uint BitPairsMinus1;
-  PacketHeader Header;
-  PacketDeviceInfo Info;
-  uint CRC;
-} FInfoPacket;
-
-typedef struct FAllInfoPacket_s {
-  uint BitPairsMinus1;
-  PacketHeader Header;
-  PacketAllDeviceInfo Info;
-  uint CRC;
-} FAllInfoPacket;
-
-typedef struct FMemoryInfoPacket_s {
-  uint BitPairsMinus1;
-  PacketHeader Header;
-  PacketMemoryInfo Info;
-  uint CRC;
-} FMemoryInfoPacket;
-
-typedef struct FLCDInfoPacket_s {
-  uint BitPairsMinus1;
-  PacketHeader Header;
-  PacketLCDInfo Info;
-  uint CRC;
-} FLCDInfoPacket;
-
-typedef struct FPuruPuruInfoPacket_s {
-  uint BitPairsMinus1;
-  PacketHeader Header;
-  PacketPuruPuruInfo Info;
-  uint CRC;
-} FPuruPuruInfoPacket;
-
-typedef struct FPuruPuruConditionPacket_s {
-  uint BitPairsMinus1;
-  PacketHeader Header;
-  PacketPuruPuruCondition Condition;
-  uint CRC;
-} FPuruPuruConditionPacket;
-
-typedef struct FTimerConditionPacket_s {
-  uint BitPairsMinus1;
-  PacketHeader Header;
-  PacketTimerCondition Condition;
-  uint CRC;
-} FTimerConditionPacket;
-
-typedef struct FControllerPacket_s {
-  uint BitPairsMinus1;
-  PacketHeader Header;
-  PacketControllerCondition Controller;
-  uint CRC;
-} FControllerPacket;
-
-typedef struct FPuruPuruBlockReadResponsePacket_s {
-  uint BitPairsMinus1;
-  PacketHeader Header;
-  PuruPuruBlockReadPacket PuruPuruBlockRead;
-  uint CRC;
-} FPuruPuruBlockReadResponsePacket;
-
-typedef struct FBlockReadResponsePacket_s {
-  uint BitPairsMinus1;
-  PacketHeader Header;
-  PacketBlockRead BlockRead;
-  uint CRC;
-} FBlockReadResponsePacket;
-
-typedef struct FTimerBlockReadResponsePacket_s {
-  uint BitPairsMinus1;
-  PacketHeader Header;
-  TimerBlockReadPacket TimerBlockRead;
-  uint CRC;
-} FTimerBlockReadResponsePacket;
-
+// ButtonInfo structure (define it only once, here in maple.h)
 typedef struct ButtonInfo_s {
-  int InputIO;
-  int DCButtonMask;
+    int InputIO;
+    int DCButtonMask;
 } ButtonInfo;
 
-static ButtonInfo ButtonInfos[NUM_BUTTONS] = {
-    {0, 0x0004}, // A
-    {1, 0x0002}, // B
-    {4, 0x0400}, // X
-    {5, 0x0200}, // Y
-    {6, 0x0010}, //  Up
-    {7, 0x0020}, // Down
-    {8, 0x0040}, // Left
-    {9, 0x0080}, // Right
-    {10, 0x0008} // Start
-#if HKT7300
-    ,
-    {16, 0x0001}, // C
-    {17, 0x0100}  // Z
-#endif
+extern ButtonInfo ButtonInfos[];
+
+// Menu structure (define it only once, here in maple.h)  
+typedef struct menu_s menu;
+
+struct menu_s {
+    char name[14];
+    int type; // 0: submenu, 1: boolean toggle, 2: function, 3: inert
+    bool visible;
+    bool selected;
+    bool on;
+    bool enabled; // control for hidden menu items (ssd1306)
+    int (*run)(struct menu_s *self);
 };
+
+// Function declarations for functions implemented in maple.c
+void readFlash(void);
+void updateFlashData(void);
+void initialize_peripherals(void);
+
+// Display function declarations (should be in display.h but declaring here for safety)
+void clearDisplay(void);
+void putString(char* str, int x, int y, uint16_t color);
+void updateDisplay(void);
+void displayInit(void);
+
+// SD card function declarations (should be in sdcard.h but declaring here for safety)
+bool sd_init(void);
+bool sd_write_block(uint32_t block_addr, const uint8_t* data);
+bool sd_read_block(uint32_t block_addr, uint8_t* data);
