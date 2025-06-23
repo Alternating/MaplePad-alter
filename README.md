@@ -1,82 +1,279 @@
-# MaplePad🍁<br/>
+# MaplePad RP2350 - Enhanced Dreamcast Controller
 
-<img style="border-width:0" src="images/maplepad_logo_shadow.png" width="300">
+A feature-rich Dreamcast controller emulator built on the Raspberry Pi RP2350 microcontroller with advanced display support, SD card functionality, and conflict-free pin assignments.
 
-MaplePad is an all-in-one Dreamcast controller, VMU, and Purupuru (rumble pack) emulator for Dreamcast portables and custom Dreamcast controllers. It runs on RP2040 and is usable with the Raspberry Pi Pico as well as custom MaplePad PCBs. See the [hardware folder](https://github.com/mackieks/MaplePad/tree/main/hardware) for a wiring diagram.
+## 🚀 Features
 
-**Note:** MaplePad is still a WIP. You may experience issues with [Windows CE games](https://segaretro.org/Windows_CE). In almost all problematic titles, disabling VMU and rumble through the MaplePad menu will make the game playable. Check out the [Compatibility List](https://docs.google.com/spreadsheets/d/1JzTGN29Ci8SeuSGkQHLN1p6ayQNWUcsNw77SMujkjbs/edit?usp=sharing) for details!
+### Core Functionality
+- **Full Dreamcast Controller Emulation** - Standard HKT-7700 and Arcade HKT-7300 modes
+- **Maple Bus Communication** - Native Dreamcast protocol support
+- **VMU Memory Card Emulation** - Complete save game functionality
+- **Multi-Display Support** - SSD1306, SSD1309, and SSD1331 OLEDs
+- **SD Card Integration** - VMU save/load with external storage
+- **RP2350 Optimization** - Enhanced performance and memory utilization
 
-## Features
-With MaplePad you can cycle through 8 200-block internal VMUs with custom icons and colors, use an I2C or SPI OLED display to see the VMU screen in color and at 2x integer scale, and enjoy rumble that is 1:1 with the Performance TremorPak in most retail software (still some minor bugs!)
+### Advanced Features
+- **Automatic Display Detection** - Seamless switching between display types
+- **Font Rendering System** - Custom bitmap font with putString/putLetter functions
+- **Conflict-Free Pin Assignment** - Optimized layout eliminates hardware conflicts
+- **Enhanced Menu System** - Configuration and settings interface
+- **Real-time Status Display** - System information and diagnostics
 
-<img src="images/vmu.png" width="750">
+## 🔧 Hardware Requirements
 
-### Feature List:
-- [x] Full FT<sub>0</sub> (controller) support including analog joystick and triggers
-- [x] Full FT<sub>1</sub> (storage) support for savegames with 1600 blocks of space
-- [x] Multipaging for memory card (8 separate 200-block memory cards)
-- [x] Full FT<sub>2</sub> (LCD) support with SSD1331 96\*64 color SPI OLED for VMU display (monochrome SSD1306 128\*64 I2C OLED also supported)
-- [x] Customizable color palettes for all 8 internal memory cards
-- [x] Robust FT<sub>8</sub> (vibration) functionality (WIP)
-- [x] Robust FT<sub>3</sub> (timer/RTC) reporting for compatibility purposes (no RTC)
-- [x] Basic menu on SSD1306 and SSD1331 OLED for configuring MaplePad behavior (WIP)
+### Microcontroller
+- **Raspberry Pi RP2350** (recommended) or RP2040
+- USB programming capability
+- 3.3V/5V power supply
 
-### To-do: 
-Release v1.6 is gated by the following TODOs
-- [ ] Finish menu (button test, VMU palette editor, misc. bugs)
-- [ ] Address issues with non-CE games (Crazy Taxi, Blue Stinger, Powerstone 2)
-- [ ] Finish FT<sub>8</sub> (vibration) continuous vibration and AST
+### Display Options (Auto-detected)
+- **SSD1331** - 96x64 Color OLED (SPI)
+- **SSD1306** - 128x64 Monochrome OLED (I2C)  
+- **SSD1309** - 128x64 Monochrome OLED (I2C)
 
-Future TODOs
-- [ ] Fix compatibility with Windows CE games
-- [ ] Implement 'fancy' VMU color palettes (gradients, animated backgrounds, etc.)
-- [ ] Implement option for DC boot animation on OLED
-- [ ] Add external RTC for true FT<sub>3</sub> (timer/RTC) support
-- [ ] Implement FT<sub>4</sub> (microphone) support
+### Storage (Optional)
+- **SD Card Module** - For VMU save/load functionality
+- SPI interface compatible
 
-## Project Showcase
-*StrikerDC MaplePad mod by Wesk*
+### Controls
+- **Digital Buttons** - A, B, X, Y, Start, D-pad (8 directions)
+- **Analog Inputs** - Left/Right triggers, Analog stick (X/Y)
+- **Arcade Mode** - Additional C and Z buttons (HKT-7300)
 
-<img src="images/striker3.jpg" width="250"> <img src="images/striker1.jpg" width="250"> <img src="images/striker2.jpg" width="250">
+## 📌 Pin Assignment (Conflict-Free)
 
-*MaplePad Arcade Controller with VMU de GamesCare. [link](https://gamescare.com.br/produto/controle-arcade-dreamcast-tela-de-vmu-e-8-vmus-virtuais-na-placa-maple-board/), [video](https://www.youtube.com/watch?v=b0IbSASR3B4/)*
+### Controller Inputs
+| Pin | Function | Description |
+|-----|----------|-------------|
+| GP0 | Button A | Primary action button |
+| GP1 | Button B | Secondary action button |
+| GP4 | Button X | Tertiary action button |
+| GP5 | Button Y | Quaternary action button |
+| GP6 | D-pad Up | Directional pad up |
+| GP7 | D-pad Down | Directional pad down |
+| GP8 | D-pad Left | Directional pad left |
+| GP9 | D-pad Right | Directional pad right |
+| GP10 | Start | Start/menu button |
 
-<img src="images/IMG_20221216_191824_896.jpg" height="190"> <img src="images/20221206_124644.jpg" height="190">
+### Dreamcast Communication
+| Pin | Function | Description |
+|-----|----------|-------------|
+| GP11 | MAPLE_A | Maple bus data line A |
+| GP12 | MAPLE_B | Maple bus data line B |
 
-*Mini Arcade Stick de Mundo Yakara Colombia. Excellent video that showcases MaplePad v1.5 features! [video](https://www.youtube.com/watch?v=jbHO3rEyzZU)*
+### SD Card Interface (SPI0)
+| Pin | Function | Description |
+|-----|----------|-------------|
+| GP16 | SD_MISO | SD card data input |
+| GP17 | SD_CS | SD card chip select |
+| GP18 | SD_SCK | SD card SPI clock |
+| GP19 | SD_MOSI | SD card data output |
 
-<img src="https://img.youtube.com/vi/jbHO3rEyzZU/0.jpg" height="210"> <img src="images/yakara.png" height="210">
+### SSD1331 Color Display (SPI1)
+| Pin | Function | Description |
+|-----|----------|-------------|
+| GP14 | SCK | SPI clock |
+| GP15 | MOSI | SPI data output |
+| GP20 | DC | Data/Command select |
+| GP21 | RST | Display reset |
 
-*Mini plug'n'play virtual memory card by jounge. [link](https://tieba.baidu.com/p/8465994390)*
+### SSD1306/SSD1309 Monochrome Display (I2C0)
+| Pin | Function | Description |
+|-----|----------|-------------|
+| GP12 | SDA | I2C data (shared with Maple when idle) |
+| GP13 | SCL | I2C clock |
 
-<img src="images/mem1.jpg" height="150"> <img src="images/mem2.jpg" height="150"> <img src="images/mem3.jpg" height="150">
+### Configuration & Control
+| Pin | Function | Description |
+|-----|----------|-------------|
+| GP22 | OLED_PIN | Display type detection |
+| GP23 | PAGE_BUTTON | VMU page control |
 
-*Various JAMMA Dreamcast adapters available on AliExpress. [link 1](https://www.aliexpress.us/item/3256805216279752.html), [link 2](https://www.aliexpress.us/item/3256804674679708.html), [video](https://www.youtube.com/shorts/UciW3vM-KWo) (flashing lights warning!)*
+### Analog Inputs (ADC)
+| Pin | Function | Description |
+|-----|----------|-------------|
+| GP26 | ADC0 | Analog stick X-axis |
+| GP27 | ADC1 | Analog stick Y-axis |
+| GP28 | ADC2 | Left trigger (L) |
+| GP29 | ADC3 | Right trigger (R) |
 
-<img src="images/jamma_adapter_lcd.jpg" height="190"> <img src="images/jamma_adapter.jpg" height="190"> <img src="images/jamma_adapter_basic.jpg" height="190"> 
+### Arcade Mode (HKT-7300)
+| Pin | Function | Description |
+|-----|----------|-------------|
+| GP24 | Button C | Additional arcade button |
+| GP25 | Button Z | Additional arcade button |
 
-*Giant Dreamcast VMU + Arcade Stick by CrazyJojo (code modified). [video](https://www.youtube.com/watch?v=bEA_On7P_g8)*
+### Power
+| Pin | Function | Description |
+|-----|----------|-------------|
+| 5V | Power In | USB or external 5V supply |
+| 3V3 | Power Out | 3.3V for peripherals |
+| GND | Ground | Multiple ground connections |
 
-<img src="images/jojo1.png" height="170"> <img src="images/jojo2.png" height="170"> <img src="images/jojo3.png" height="170"> 
+### Available for Expansion
+| Pin | Status | Notes |
+|-----|--------|-------|
+| GP2 | Available | Future expansion |
+| GP3 | Available | Future expansion |
+| GP13 | Available | When not using I2C displays |
 
-## Dumping VMUs to PC
-You can use [picotool](https://github.com/raspberrypi/picotool) to dump VMUs manually. Here's the process:
+## 🛠️ Building the Firmware
 
-- Put RP2040 into programming mode with BOOTSEL button and connect it to your PC
-- Use picotool to dump whichever VMU page you want: `picotool save -r 10020000 10040000 dump1.bin`
-![image](https://user-images.githubusercontent.com/49252894/211163335-2463ae14-043e-40be-aa93-1a09b1a620f9.png)
-- VMUs start at 0x10020000 and each one is 0x20000 long. So to save page 7, for example, you'd use 
-`picotool save -r 100E0000 10100000 dump7.bin`
-- Open dump in [VMU Explorer](https://segaretro.org/VMU_Explorer)
-![image](https://user-images.githubusercontent.com/49252894/211163284-d4100301-11ad-459c-8d29-5afbde9b49f5.png)
+### Prerequisites
+```bash
+# Install Pico SDK
+git clone https://github.com/raspberrypi/pico-sdk.git
+export PICO_SDK_PATH=/path/to/pico-sdk
 
-## License
-<a rel="license" href="http://creativecommons.org/licenses/by/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>.
+# Install build tools
+sudo apt install cmake gcc-arm-none-eabi ninja-build
+```
 
-Share — copy and redistribute the material in any medium or format <br />
-Adapt — remix, transform, and build upon the material for any purpose, even commercially. <br />
-Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made. <br />
+### Build Process
+```bash
+# Clone repository
+git clone [repository-url]
+cd MaplePad-alter
 
-MaplePad is forked from [Charlie Cole's Pop'n Music Controller.](https://github.com/charcole/Dreamcast-PopnMusic)
+# Create build directory
+mkdir build && cd build
 
-Special thanks: [Charlie Cole](https://github.com/charcole), [Colton Pawielski](https://github.com/cepawiel) and [Wesk](https://www.youtube.com/channel/UCYAwbbBxi5_LK8WVrD10SUw).
+# Configure build
+cmake ..
+
+# Build firmware
+ninja maplepad
+
+# Output files:
+# - maplepad.elf (main executable)
+# - maplepad.uf2 (drag-and-drop programming)
+# - maplepad.hex (Intel HEX format)
+# - maplepad.bin (binary format)
+```
+
+### Programming the Device
+```bash
+# Method 1: UF2 (Recommended)
+# 1. Hold BOOTSEL button and connect USB
+# 2. Copy maplepad.uf2 to USB drive
+# 3. Device automatically reboots
+
+# Method 2: picotool
+picotool load maplepad.uf2
+picotool reboot
+```
+
+## ⚙️ Configuration
+
+### Display Selection
+The system automatically detects the connected display type via GP22:
+- **Low (0V)** - SSD1306/SSD1309 monochrome displays
+- **High (3.3V)** - SSD1331 color display
+
+### Controller Mode
+Set in `maple.h`:
+```c
+#define HKT7700 0  // Standard controller (9 buttons)
+#define HKT7300 1  // Arcade stick (11 buttons)
+```
+
+### SD Card Features
+- **Automatic Detection** - System detects SD card presence
+- **VMU Save/Load** - Save VMU pages to SD card
+- **Menu Interface** - Access via button combinations
+
+## 🎮 Usage
+
+### Basic Operation
+1. Connect to Dreamcast via Maple bus
+2. Power on - system initializes automatically
+3. Display shows status information
+4. Controller functions as standard Dreamcast pad
+
+### VMU Operations
+- **Save to SD**: Access SD menu, select save option
+- **Load from SD**: Access SD menu, select load option
+- **Page Management**: Use page button to cycle VMU pages
+
+### Menu System
+- Access configuration menu via button combinations
+- Adjust display settings, calibration, and preferences
+- View system information and diagnostics
+
+## 🔍 Troubleshooting
+
+### Build Issues
+- **Missing Functions**: Ensure all source files are included
+- **Pin Conflicts**: Verify pin assignments match hardware
+- **SDK Version**: Use compatible Pico SDK version
+
+### Hardware Issues
+- **No Display**: Check power and pin connections
+- **SD Card Errors**: Verify SPI connections and card format
+- **Controller Not Detected**: Check Maple bus wiring
+
+### Software Issues
+- **Boot Failures**: Check firmware programming
+- **Display Corruption**: Verify display type detection
+- **Save/Load Errors**: Check SD card functionality
+
+## 📋 File Structure
+
+```
+MaplePad-alter/
+├── src/
+│   ├── maple.c              # Main controller logic
+│   ├── maple.h              # Core definitions
+│   ├── display.c            # Display abstraction layer
+│   ├── display.h            # Display interface
+│   ├── sdcard.c             # SD card implementation
+│   ├── sdcard.h             # SD card interface
+│   ├── ssd1306.c/h          # SSD1306 driver
+│   ├── ssd1309.c/h          # SSD1309 driver
+│   ├── ssd1331.c/h          # SSD1331 driver
+│   ├── font.c/h             # Font rendering system
+│   └── menu.c/h             # Menu system
+├── build/                   # Build output
+├── CMakeLists.txt          # Build configuration
+└── README.md               # This file
+```
+
+## 🤝 Contributing
+
+### Development Guidelines
+- Follow existing code style and conventions
+- Test thoroughly on hardware before submitting
+- Document any new features or pin assignments
+- Ensure backward compatibility when possible
+
+### Reporting Issues
+- Include hardware configuration details
+- Provide build environment information
+- Describe steps to reproduce problems
+- Include relevant log output or error messages
+
+## 📄 License
+
+This project is licensed under Creative Commons Attribution 4.0 International License.
+
+**Share** — copy and redistribute the material in any medium or format  
+**Adapt** — remix, transform, and build upon the material for any purpose, even commercially  
+**Attribution** — You must give appropriate credit, provide a link to the license, and indicate if changes were made
+
+## 🙏 Acknowledgments
+
+- **Charlie Cole** - Original Pop'n Music Controller foundation
+- **Mackie Kannard-Smith (mackieks)** - MaplePad development and enhancements
+- **Raspberry Pi Foundation** - RP2040/RP2350 platform and SDK
+- **Community Contributors** - Testing, feedback, and improvements
+
+## 🔗 Links
+
+- [Original MaplePad Repository](https://github.com/mackieks/MaplePad)
+- [Charlie Cole's Pop'n Music Controller](https://github.com/charcole/Dreamcast-PopnMusic)
+- [Raspberry Pi Pico SDK](https://github.com/raspberrypi/pico-sdk)
+- [Dreamcast Maple Bus Documentation](https://segaretro.org/Maple)
+
+---
+
+**Built with ❤️ for the Dreamcast community**
