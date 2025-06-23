@@ -87,8 +87,8 @@ ButtonInfo ButtonInfos[NUM_BUTTONS] = {
     {10, 0x0008} // Start
 #if HKT7300
     ,
-    {16, 0x0001}, // C
-    {17, 0x0100}  // Z
+    {24, 0x0001}, // C - UPDATED from GP16 to GP24
+    {25, 0x0100}  // Z - UPDATED from GP17 to GP25
 #endif
 };
 
