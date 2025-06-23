@@ -1,3 +1,6 @@
+// UPDATED src/ssd1306.h - Conflict-Free Pin Assignment
+// Update these pin definitions in your ssd1306.h
+
 #pragma once
 
 #include <stdio.h>
@@ -7,9 +10,15 @@
 
 // SSD1306 defines
 #define SSD1306_ADDRESS 0x3C
-#define SSD1306_I2C i2c1
-#define I2C_SDA 2
-#define I2C_SCL 3
+#define SSD1306_I2C i2c0  // Using I2C0 instead of I2C1
+
+// UPDATED CONFLICT-FREE I2C PINS
+#define I2C_SDA 12   // Was 2 (GP12 when not used for Maple Bus)
+#define I2C_SCL 13   // Was 3 (GP13 when not used for other purposes)
+
+// Alternative I2C pins if GP12/13 still conflict:
+// #define I2C_SDA 8    // Alternative option
+// #define I2C_SCL 9    // Alternative option
 
 // value in KHz
 #define I2C_CLOCK 3000
@@ -18,6 +27,7 @@
 #define SSD1306_LCDHEIGHT 64
 #define SSD1306_FRAMEBUFFER_SIZE (SSD1306_LCDWIDTH * SSD1306_LCDHEIGHT / 8)
 
+// SSD1306 Commands (unchanged)
 #define SSD1306_SETLOWCOLUMN 0x00
 #define SSD1306_SETHIGHCOLUMN 0x10
 
@@ -51,16 +61,11 @@
 #define SSD1306_SETCOMPINS 0xDA
 #define SSD1306_SETVCOMDETECT 0xDB
 
+// Function prototypes (unchanged)
 void ssd1306SendCommand(uint8_t cmd);
-
 void ssd1306SendCommandBuffer(uint8_t *inbuf, int len);
-
 void ssd1306_init();
-
 void updateSSD1306();
-
 void clearSSD1306();
-
 void splashSSD1306();
-
 void setPixelSSD1306(int x, int y, bool on);

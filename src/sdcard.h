@@ -1,4 +1,6 @@
-// # FILE: src/sdcard.h (NEW FILE)
+// UPDATED src/sdcard.h - Conflict-Free Pin Assignment
+// Replace your existing sdcard.h with this version
+
 #pragma once
 
 #include <stdio.h>
@@ -8,15 +10,17 @@
 #include "hardware/spi.h"
 #include "hardware/gpio.h"
 
-// SD Card SPI configuration for Adafruit breakout
-#define SD_SPI_PORT spi1
+// SD Card SPI configuration - CONFLICT-FREE PINS
+#define SD_SPI_PORT spi0  // Using SPI0 instead of SPI1
 #define SD_SPEED_HZ 1000000  // 1MHz for initialization, can go up to 25MHz later
-#define SD_SCK_PIN 10
-#define SD_MOSI_PIN 11  
-#define SD_MISO_PIN 12
-#define SD_CS_PIN 13
 
-// SD Card commands
+// NEW CONFLICT-FREE SD CARD PINS
+#define SD_SCK_PIN 18   // Was 10 (conflicted with Start button)
+#define SD_MOSI_PIN 19  // Was 11 (conflicted with MAPLE_A)  
+#define SD_MISO_PIN 16  // Was 12 (conflicted with MAPLE_B)
+#define SD_CS_PIN 17    // Was 13 (conflicted with potential display pins)
+
+// SD Card commands (unchanged)
 #define CMD0    0   // GO_IDLE_STATE
 #define CMD1    1   // SEND_OP_COND (MMC)
 #define CMD8    8   // SEND_IF_COND
@@ -40,7 +44,7 @@
 #define CMD55   55  // APP_CMD
 #define CMD58   58  // READ_OCR
 
-// SD Card response types
+// SD Card response types (unchanged)
 #define R1_IDLE_STATE           0x01
 #define R1_ERASE_RESET          0x02
 #define R1_ILLEGAL_COMMAND      0x04
@@ -49,7 +53,7 @@
 #define R1_ADDRESS_ERROR        0x20
 #define R1_PARAMETER_ERROR      0x40
 
-// SD Card types
+// SD Card types (unchanged)
 typedef enum {
     CARD_TYPE_UNKNOWN = 0,
     CARD_TYPE_MMC,
@@ -58,7 +62,7 @@ typedef enum {
     CARD_TYPE_SDHC
 } sd_card_type_t;
 
-// Function prototypes
+// Function prototypes (unchanged)
 bool sd_init(void);
 bool sd_read_block(uint32_t block_addr, uint8_t *buffer);
 bool sd_write_block(uint32_t block_addr, const uint8_t *buffer);

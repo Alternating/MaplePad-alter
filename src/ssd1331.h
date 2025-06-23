@@ -1,3 +1,6 @@
+// UPDATED src/ssd1331.h - Conflict-Free Pin Assignment
+// Update these pin definitions in your ssd1331.h
+
 #pragma once
 
 #include <stdio.h>
@@ -9,19 +12,21 @@
 #include "hardware/spi.h"
 #include "hardware/dma.h"
 
-#define SSD1331_SPI spi0
-#define SSD1331_SPEED 50000000 // 62.5MHz
-#define SCK 2
-#define MOSI 3
-#define DC 14
-#define RST 15
+#define SSD1331_SPI spi1  // Using SPI1 for display
+#define SSD1331_SPEED 50000000 // 50MHz
+
+// UPDATED CONFLICT-FREE DISPLAY PINS
+#define SCK 14    // Was 2 (now conflicts avoided with I2C)
+#define MOSI 15   // Was 3 (now conflicts avoided with I2C)
+#define DC 20     // Was 14 (moved to avoid SD card conflicts)
+#define RST 21    // Was 15 (moved to avoid SD card conflicts)
 
 #define OLED_W 96
 #define OLED_H 64
 
 #define OLED_FLIP flashData[18]
 
-// SSD1331 Commands
+// SSD1331 Commands (unchanged)
 #define SSD1331_CMD_DRAWLINE 0x21       //!< Draw line
 #define SSD1331_CMD_DRAWRECT 0x22       //!< Draw rectangle
 #define SSD1331_CMD_FILL 0x26           //!< Fill enable/disable
@@ -51,6 +56,7 @@
 #define SSD1331_CMD_PRECHARGELEVEL 0xBB //!< Set pre-charge voltage
 #define SSD1331_CMD_VCOMH 0xBE          //!< Set Vcomh voltge
 
+// Function prototypes (unchanged)
 float cos_32s(float x);
 float cos32(float x);
 float sin32(float x);
@@ -60,17 +66,10 @@ double atan_66s(double x);
 void fast_hsv2rgb_32bit(uint16_t, uint8_t, uint8_t, uint8_t *, uint8_t *, uint8_t *);
 
 void ssd1331WriteCommand(const uint8_t data);
-
 void ssd1331WriteCommands(const uint8_t *data, uint num);
-
 void ssd1331WriteData(const uint8_t *data, uint numbytes);
-
 void setPixelSSD1331(const uint8_t x, const uint8_t y, const uint16_t color);
-
 void clearSSD1331(void);
-
 void updateSSD1331(void);
-
 void splashSSD1331(void);
-
 void ssd1331_init();
