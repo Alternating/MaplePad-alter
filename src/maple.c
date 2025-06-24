@@ -14,23 +14,19 @@
 #include "sdcard.h"
 #include "menu.h"
 
-// RP2350 compatibility
-#ifdef PICO_RP2350
-#define FLASH_OFFSET (256 * 1024) // Larger offset for RP2350's larger flash
+// RP2350 primary target with RP2040 backward compatibility
+#ifdef PICO_RP2040
+#define FLASH_OFFSET (128 * 1024) // Smaller offset for RP2040 compatibility
+#define MAX_FLASH_SIZE (2 * 1024 * 1024) // 2MB flash on RP2040
 #else
-#define FLASH_OFFSET (128 * 1024) // Original offset for RP2040
+// Default to RP2350 (primary target)
+#define FLASH_OFFSET (256 * 1024) // Larger offset for RP2350's expanded flash
+#define MAX_FLASH_SIZE (4 * 1024 * 1024) // 4MB flash on RP2350
 #endif
-
-// Pin definitions
-#define OLED_PIN 22
 
 // Maple Bus Defines and Funcs
 #define SHOULD_SEND 1  // Set to zero to sniff two devices sending signals to each other
 #define SHOULD_PRINT 0 // Nice for debugging but can cause timing issues
-
-// Board Variant
-#define PICO 1
-#define MAPLEPAD 0
 
 // HKT-7700 (Standard Controller) or HKT-7300 (Arcade Stick) (see maple.h)
 #if HKT7700
@@ -46,23 +42,6 @@
 #define PHASE_SIZE (BLOCK_SIZE / 4)
 #define FLASH_WRITE_DELAY 16      // About quarter of a second if polling once a frame
 
-#if PICO
-#define PAGE_BUTTON 21 // Pull GP21 low for Page Cycle. Avoid page cycling for ~10s after saving or copying VMU data to avoid data corruption
-#elif MAPLEPAD
-#define PAGE_BUTTON 20 // Dummy pin
-#endif
-
-#define PAGE_BUTTON_MASK 0x0608   // X, Y, and Start
-#define PAGE_BACKWARD_MASK 0x0048 // Start and D-pad Left
-#define PAGE_FORWARD_MASK 0x0088  // Start and D-pad Right
-
-#define INPUT_ACT 20
-
-#define MAPLE_A 11
-#define MAPLE_B 12
-#define PICO_PIN1_PIN_RX MAPLE_A
-#define PICO_PIN5_PIN_RX MAPLE_B
-
 #define ADDRESS_DREAMCAST 0
 #define ADDRESS_CONTROLLER 0x20
 #define ADDRESS_SUBPERIPHERAL0 0x01
@@ -74,92 +53,153 @@ uint8_t flashData[64] = {0};        // Flash configuration data, initialized to 
 uint16_t color = 0xFFFF;            // Display color (white)
 bool sd_card_available = false;
 
-// ButtonInfos array definition
-ButtonInfo ButtonInfos[NUM_BUTTONS] = {
-    {0, 0x0004}, // A
-    {1, 0x0002}, // B
-    {4, 0x0400}, // X
-    {5, 0x0200}, // Y
-    {6, 0x0010}, // Up
-    {7, 0x0020}, // Down
-    {8, 0x0040}, // Left
-    {9, 0x0080}, // Right
-    {10, 0x0008} // Start
-#if HKT7300
-    ,
-    {24, 0x0001}, // C - UPDATED from GP16 to GP24
-    {25, 0x0100}  // Z - UPDATED from GP17 to GP25
-#endif
-};
+// Maple communication variables
+static PIO maple_tx_pio = pio0;
+static PIO maple_rx_pio = pio1;
+static uint maple_tx_sm = 0;
+static uint maple_rx_sm = 0;
 
 // Function prototypes
 void initialize_peripherals(void);
+void initialize_maple_bus(void);
 bool save_vmu_to_sd(uint8_t page);
 bool load_vmu_from_sd(uint8_t page);
-int sd_menu_handler(void);
 void rp2350_optimizations(void);
+void handle_maple_communication(void);
 
-// Placeholder implementations for missing functions
+// Flash memory functions
 void readFlash(void) {
-    // TODO: Implement flash reading logic
-    // For now, just initialize MemoryCard with dummy data
+    // Read flash memory configuration
+    #ifdef PICO_HW
+    // RP2350-optimized flash reading with RP2040 fallback
+    const uint8_t *flash_contents = (const uint8_t *)(XIP_BASE + FLASH_OFFSET);
+    
+    // Verify flash bounds for safety
+    if (FLASH_OFFSET + sizeof(flashData) + sizeof(MemoryCard) > MAX_FLASH_SIZE) {
+        printf("Warning: Flash offset exceeds available flash size\n");
+        memset(flashData, 0, sizeof(flashData));
+        memset(MemoryCard, 0, sizeof(MemoryCard));
+        return;
+    }
+    
+    memcpy(flashData, flash_contents, sizeof(flashData));
+    memcpy(MemoryCard, flash_contents + sizeof(flashData), sizeof(MemoryCard));
+    printf("Flash data read successfully from offset 0x%X\n", FLASH_OFFSET);
+    #else
+    // Initialize with defaults for non-hardware builds
+    memset(flashData, 0, sizeof(flashData));
     memset(MemoryCard, 0, sizeof(MemoryCard));
-    printf("Flash read placeholder - MemoryCard cleared\n");
+    printf("Flash read placeholder - using defaults\n");
+    #endif
 }
 
 void updateFlashData(void) {
-    // TODO: Implement flash writing logic
-    // This should write MemoryCard data to flash memory
-    printf("Flash update placeholder - data would be written to flash\n");
+    // Write flash memory configuration - optimized for RP2350
+    #ifdef PICO_HW
+    // Disable interrupts during flash write
+    uint32_t interrupts = save_and_disable_interrupts();
+    
+    // Verify flash bounds
+    if (FLASH_OFFSET + FLASH_SECTOR_SIZE > MAX_FLASH_SIZE) {
+        printf("Error: Flash write would exceed available flash\n");
+        restore_interrupts(interrupts);
+        return;
+    }
+    
+    // Erase flash sector
+    flash_range_erase(FLASH_OFFSET, FLASH_SECTOR_SIZE);
+    
+    // Prepare data to write (RP2350 can handle larger sectors efficiently)
+    uint8_t write_buffer[FLASH_SECTOR_SIZE];
+    memset(write_buffer, 0, FLASH_SECTOR_SIZE);
+    memcpy(write_buffer, flashData, sizeof(flashData));
+    memcpy(write_buffer + sizeof(flashData), MemoryCard, sizeof(MemoryCard));
+    
+    // Write to flash
+    flash_range_program(FLASH_OFFSET, write_buffer, FLASH_SECTOR_SIZE);
+    
+    // Restore interrupts
+    restore_interrupts(interrupts);
+    printf("Flash data written successfully to RP2350 flash\n");
+    #else
+    printf("Flash write placeholder - data saved to memory\n");
+    #endif
 }
 
-// Enhanced initialization function
-void initialize_peripherals(void) {
-    // OLED initialization
-    gpio_init(OLED_PIN);
-    gpio_set_dir(OLED_PIN, GPIO_IN);
-    gpio_pull_up(OLED_PIN);
-    sleep_ms(20);
-
-    // Initialize display with enhanced detection
-    displayInit();
+// Initialize Maple bus PIO communication (RP2350 optimized)
+void initialize_maple_bus(void) {
+    printf("Initializing Maple bus communication (RP2350 enhanced)...\n");
     
-    // Initialize SD Card
-    printf("Initializing SD card...\n");
+    // Initialize Maple bus pins
+    gpio_init(MAPLE_A);
+    gpio_init(MAPLE_B);
+    
+    // Set pins as inputs initially (will be controlled by PIO)
+    gpio_set_dir(MAPLE_A, GPIO_IN);
+    gpio_set_dir(MAPLE_B, GPIO_IN);
+    
+    // Add pull-ups to prevent floating
+    gpio_pull_up(MAPLE_A);
+    gpio_pull_up(MAPLE_B);
+    
+    // RP2350 has enhanced PIO capabilities
+    // - More PIO state machines available
+    // - Higher clock speeds for PIO
+    // - Better interrupt handling
+    
+    // TODO: Initialize PIO programs for Maple communication
+    // RP2350 can handle more complex PIO programs with better performance
+    // This is where the maple.pio TX/RX programs would be loaded
+    // and state machines configured for MAPLE_A and MAPLE_B pins
+    
+    printf("Maple bus pins GP%d and GP%d initialized for RP2350\n", MAPLE_A, MAPLE_B);
+}
+
+// Enhanced peripheral initialization
+void initialize_peripherals(void) {
+    printf("Initializing peripherals...\n");
+    
+    // Initialize display
+    displayInit();
+    printf("Display initialized\n");
+    
+    // Initialize SD card
     sd_card_available = sd_init();
     if (sd_card_available) {
         printf("SD card initialized successfully\n");
-        // Show SD card status on display
-        clearDisplay();
-        putString("SD: Ready", 0, 0, color);
-        updateDisplay();
-        sleep_ms(1000);
     } else {
         printf("SD card initialization failed\n");
-        clearDisplay();
-        putString("SD: Failed", 0, 0, color);
-        updateDisplay();
-        sleep_ms(1000);
     }
-
-    // Continue with existing MaplePad initialization...
-    clearDisplay();
-    putString("MaplePad Ready", 0, 1, color);
-    updateDisplay();
-    sleep_ms(1000);
+    
+    // Read flash configuration
+    readFlash();
+    
+    // Initialize Maple bus
+    initialize_maple_bus();
+    
+    // Initialize OLED detection pin
+    gpio_init(OLED_PIN);
+    gpio_set_dir(OLED_PIN, GPIO_IN);
+    gpio_pull_up(OLED_PIN);
+    
+    // Initialize page button for VMU page cycling
+    gpio_init(PAGE_BUTTON);
+    gpio_set_dir(PAGE_BUTTON, GPIO_IN);
+    gpio_pull_up(PAGE_BUTTON);
+    
+    printf("All peripherals initialized\n");
 }
 
-// SD Card utility functions
+// VMU save/load functions
 bool save_vmu_to_sd(uint8_t page) {
-    if (!sd_card_available) return false;
+    if (!sd_card_available) {
+        printf("SD card not available\n");
+        return false;
+    }
     
-    // Calculate block address (simple file system)
-    uint32_t block_addr = 100 + (page * 4); // Start at block 100, 4 blocks per page
+    uint32_t block_addr = 100 + (page * 4); // Each VMU page uses 4 blocks
     
-    // Prepare VMU page data
-    readFlash(); // Load current page into MemoryCard array
-    
-    // Write 4 blocks (512 bytes each = 2048 bytes total for VMU page)
+    // Write 4 blocks (2048 bytes) for the VMU page
     for (int i = 0; i < 4; i++) {
         uint32_t offset = i * 512;
         bool success = sd_write_block(block_addr + i, &MemoryCard[offset]);
@@ -174,7 +214,10 @@ bool save_vmu_to_sd(uint8_t page) {
 }
 
 bool load_vmu_from_sd(uint8_t page) {
-    if (!sd_card_available) return false;
+    if (!sd_card_available) {
+        printf("SD card not available\n");
+        return false;
+    }
     
     uint32_t block_addr = 100 + (page * 4);
     
@@ -195,101 +238,131 @@ bool load_vmu_from_sd(uint8_t page) {
     return true;
 }
 
-// Enhanced menu function for SD card operations
-int sd_menu_handler(void) {
-    if (!sd_card_available) {
-        clearDisplay();
-        putString("No SD Card", 0, 0, color);
-        putString("Press A", 0, 2, color);
-        updateDisplay();
-        
-        while (gpio_get(ButtonInfos[0].InputIO)); // Wait for A press
-        while (!gpio_get(ButtonInfos[0].InputIO)); // Wait for A release
-        return 1;
-    }
+// RP2350 optimizations and features (primary target)
+void rp2350_optimizations(void) {
+    // RP2350 enhanced features
+    printf("Applying RP2350 optimizations...\n");
     
-    clearDisplay();
-    putString("SD Card Menu", 0, 0, color);
-    putString("A: Save VMU", 0, 1, color);
-    putString("B: Load VMU", 0, 2, color);
-    putString("X: Exit", 0, 3, color);
-    updateDisplay();
+    // Higher clock speeds available on RP2350
+    // set_sys_clock_khz(150000, true); // 150MHz (uncomment when stable)
     
-    while (true) {
-        if (!gpio_get(ButtonInfos[0].InputIO)) { // A button - Save
-            save_vmu_to_sd(currentPage);
-            clearDisplay();
-            putString("Page Saved!", 0, 1, color);
-            updateDisplay();
-            sleep_ms(1000);
-            break;
-        }
-        
-        if (!gpio_get(ButtonInfos[1].InputIO)) { // B button - Load
-            load_vmu_from_sd(currentPage);
-            clearDisplay();
-            putString("Page Loaded!", 0, 1, color);
-            updateDisplay();
-            sleep_ms(1000);
-            break;
-        }
-        
-        if (!gpio_get(ButtonInfos[2].InputIO)) { // X button - Exit
-            break;
-        }
-        
-        sleep_ms(10);
-    }
+    // ARM Cortex-M33 specific features
+    // - Hardware floating point unit
+    // - TrustZone support (if needed)
+    // - Enhanced DSP instructions
     
-    return 1;
+    // Additional GPIO pins (26-29) available on RP2350
+    // PSRAM support if equipped
+    
+    printf("RP2350 optimizations configured\n");
 }
 
-// RP2350 specific optimizations
-#ifdef PICO_RP2350
-void rp2350_optimizations(void) {
-    // Enable higher clock speeds available on RP2350
-    // Note: Verify these settings with your specific RP2350 board
-    
-    // Set system clock to higher frequency if supported
-    // set_sys_clock_khz(150000, true); // 150MHz example
-    
-    // Configure additional ARM Cortex-M33 features
-    // Enable floating point unit if needed
-    // Enable cache if available
-    
-    printf("RP2350 optimizations applied\n");
+#ifdef PICO_RP2040
+void rp2040_compatibility(void) {
+    printf("Running in RP2040 compatibility mode\n");
+    // Ensure we don't use RP2350-specific features
+    // Lower clock speeds and reduced memory usage
 }
 #endif
+
+// Page cycling function using PAGE_BUTTON
+void check_page_button(void) {
+    static uint32_t last_page_press = 0;
+    static bool button_was_pressed = false;
+    uint32_t current_time = time_us_32();
+    
+    bool button_pressed = !gpio_get(PAGE_BUTTON);
+    
+    // Check for button press with debounce
+    if (button_pressed && !button_was_pressed && (current_time - last_page_press) > 500000) {
+        currentPage++;
+        if (currentPage > 8) currentPage = 1; // Cycle through pages 1-8
+        
+        // Update display to show page change
+        clearDisplay();
+        putString("VMU Page:", 0, 0, color);
+        char page_str[16];
+        sprintf(page_str, "%d", currentPage);
+        putString(page_str, 0, 1, color);
+        updateDisplay();
+        
+        last_page_press = current_time;
+        printf("Switched to VMU page %d\n", currentPage);
+    }
+    
+    button_was_pressed = button_pressed;
+}
+
+// Main Maple bus communication handler
+void handle_maple_communication(void) {
+    // TODO: Implement actual Maple bus communication using PIO
+    // This is where the core Dreamcast communication protocol would be handled
+    
+    // For now, just handle basic status and VMU operations
+    static uint32_t last_status_update = 0;
+    uint32_t current_time = time_us_32();
+    
+    if ((current_time - last_status_update) > 1000000) { // Update every second
+        // Update display with current status
+        clearDisplay();
+        putString("MaplePad", 0, 0, color);
+        
+        char page_str[16];
+        sprintf(page_str, "Page: %d", currentPage);
+        putString(page_str, 0, 1, color);
+        
+        if (sd_card_available) {
+            putString("SD: OK", 0, 2, color);
+        } else {
+            putString("SD: --", 0, 2, color);
+        }
+        
+        putString("Waiting...", 0, 3, color);
+        updateDisplay();
+        
+        last_status_update = current_time;
+    }
+    
+    // Check for page button presses
+    check_page_button();
+}
 
 // Main function
 int main() {
     stdio_init_all();
     
     printf("MaplePad Starting...\n");
+    printf("Firmware Version: %02X\n", CURRENT_FW_VERSION);
     
-#ifdef PICO_RP2350
-    printf("Running on RP2350\n");
-    rp2350_optimizations();
+#ifdef PICO_RP2040
+    printf("Running on RP2040 (compatibility mode)\n");
+    rp2040_compatibility();
 #else
-    printf("Running on RP2040\n");
+    printf("Running on RP2350 (primary target)\n");
+    rp2350_optimizations();
 #endif
     
     // Initialize all peripherals
     initialize_peripherals();
     
-    printf("Initialization complete. Starting main loop...\n");
+    // Show startup splash
+    clearDisplay();
+    putString("MaplePad", 0, 0, color);
+    putString("Initializing", 0, 1, color);
+    char version_str[16];
+    sprintf(version_str, "v%02X", CURRENT_FW_VERSION);
+    putString(version_str, 0, 2, color);
+    updateDisplay();
+    sleep_ms(2000);
     
-    // Main application loop
+    printf("Initialization complete. Starting Maple communication...\n");
+    
+    // Main application loop - focused on Maple bus communication
     while (true) {
-        // TODO: Add your main Dreamcast communication loop here
-        // This is where the Maple bus communication would happen
+        handle_maple_communication();
         
-        // For now, just a simple loop with menu check
-        if (!gpio_get(ButtonInfos[2].InputIO)) { // X button pressed
-            sd_menu_handler();
-        }
-        
-        sleep_ms(16); // ~60 FPS
+        // Small delay to prevent excessive CPU usage
+        sleep_us(100);
     }
     
     return 0;

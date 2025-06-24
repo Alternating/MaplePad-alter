@@ -12,7 +12,7 @@
 #define DISPLAY_SSD1309 2
 
 // OLED detection pin
-#define OLED_PIN 22
+#define OLED_PIN 12
 
 // Function prototypes
 void displayInit(void);

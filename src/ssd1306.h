@@ -10,11 +10,11 @@
 
 // SSD1306 defines
 #define SSD1306_ADDRESS 0x3C
-#define SSD1306_I2C i2c0  // Using I2C0 instead of I2C1
+#define SSD1306_I2C i2c0
 
 // UPDATED CONFLICT-FREE I2C PINS
-#define I2C_SDA 12   // Was 2 (GP12 when not used for Maple Bus)
-#define I2C_SCL 13   // Was 3 (GP13 when not used for other purposes)
+#define I2C_SDA 10   // Was 2 (GP12 when not used for Maple Bus)
+#define I2C_SCL 11   // Was 3 (GP13 when not used for other purposes)
 
 // Alternative I2C pins if GP12/13 still conflict:
 // #define I2C_SDA 8    // Alternative option

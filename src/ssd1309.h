@@ -9,8 +9,8 @@
 // SSD1309 defines
 #define SSD1309_ADDRESS 0x3C
 #define SSD1309_I2C i2c1
-#define I2C_SDA 2
-#define I2C_SCL 3
+#define I2C_SDA 10
+#define I2C_SCL 11
 
 // value in KHz
 #define I2C_CLOCK 3000

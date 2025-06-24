@@ -6,20 +6,22 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
-
 #include "pico/stdlib.h"
 #include "pico/binary_info.h"
 #include "hardware/spi.h"
 #include "hardware/dma.h"
 
+#define SSD1331_SPI spi1
+#define SSD1331_SPEED 50000000
+
 #define SSD1331_SPI spi1  // Using SPI1 for display
 #define SSD1331_SPEED 50000000 // 50MHz
 
 // UPDATED CONFLICT-FREE DISPLAY PINS
-#define SCK 14    // Was 2 (now conflicts avoided with I2C)
-#define MOSI 15   // Was 3 (now conflicts avoided with I2C)
-#define DC 20     // Was 14 (moved to avoid SD card conflicts)
-#define RST 21    // Was 15 (moved to avoid SD card conflicts)
+#define SCK 6    // Was 2 (now conflicts avoided with I2C)
+#define MOSI 7   // Was 3 (now conflicts avoided with I2C)
+#define DC 8     // Was 14 (moved to avoid SD card conflicts)
+#define RST 9    // Was 15 (moved to avoid SD card conflicts)
 
 #define OLED_W 96
 #define OLED_H 64

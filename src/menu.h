@@ -16,13 +16,10 @@
 
 #include "pico/stdlib.h"
 
-// Forward declarations - don't redefine types from maple.h
-struct ButtonInfo_s; // Forward declaration only
-typedef struct ButtonInfo_s ButtonInfo; // Use same name
 
 // External references to variables defined in maple.c
 extern uint8_t flashData[];
-extern ButtonInfo ButtonInfos[];
+
 
 // Flash data accessors (these reference flashData defined in maple.c)
 #define xCenter flashData[0]

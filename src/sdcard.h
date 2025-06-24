@@ -15,10 +15,10 @@
 #define SD_SPEED_HZ 1000000  // 1MHz for initialization, can go up to 25MHz later
 
 // NEW CONFLICT-FREE SD CARD PINS
-#define SD_SCK_PIN 18   // Was 10 (conflicted with Start button)
-#define SD_MOSI_PIN 19  // Was 11 (conflicted with MAPLE_A)  
-#define SD_MISO_PIN 16  // Was 12 (conflicted with MAPLE_B)
-#define SD_CS_PIN 17    // Was 13 (conflicted with potential display pins)
+#define SD_SCK_PIN 2   // Was 10 (conflicted with Start button)
+#define SD_MOSI_PIN 3  // Was 11 (conflicted with MAPLE_A)  
+#define SD_MISO_PIN 4  // Was 12 (conflicted with MAPLE_B)
+#define SD_CS_PIN 5    // Was 13 (conflicted with potential display pins)
 
 // SD Card commands (unchanged)
 #define CMD0    0   // GO_IDLE_STATE

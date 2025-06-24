@@ -14,11 +14,11 @@
 #endif
 
 // Original MaplePad pins (unchanged)
-#define MAPLE_A 11
-#define MAPLE_B 12
+#define MAPLE_A 0
+#define MAPLE_B 1
 #define INPUT_ACT 20
-#define PAGE_BUTTON 21
-#define OLED_PIN 22
+#define PAGE_BUTTON 13
+#define OLED_PIN 12
 
 // SSD1306/SSD1309 I2C pins (shared)
 #define I2C_SDA 2

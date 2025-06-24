@@ -21,7 +21,7 @@ add_executable(maplepad)
 
 target_compile_definitions(maplepad PRIVATE 
     PICO_HW
-    PICO_RP2040=1
+    PICO_RP2350=1
     PICO_NO_HARDWARE_EXCEPTION=1
 )
 

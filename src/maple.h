@@ -1,3 +1,6 @@
+// FILE: src/maple.h - UPDATED PIN DEFINITIONS
+// Replace your maple.h pin definitions with these
+
 #pragma once
 
 #include <math.h>
@@ -23,17 +26,28 @@
 #include "pico/time.h"
 #include "state_machine.h"
 
+// OPTIMIZED PIN ASSIGNMENTS - NO CONTROLLER INPUTS
+#define MAPLE_A 0   // Dedicated Maple bus pin A
+#define MAPLE_B 1   // Dedicated Maple bus pin B
+
+// Configuration pins
+#define OLED_PIN 12      // Display type detection
+#define PAGE_BUTTON 13   // VMU page control
+
+// Legacy compatibility (no longer used for GPIO inputs)
+#define INPUT_ACT 14     // Available for other use
+#define PICO_PIN1_PIN_RX MAPLE_A
+#define PICO_PIN5_PIN_RX MAPLE_B
+
+// Controller mode selection
 #define HKT7700 0 // "Seed" (standard controller)
 #define HKT7300 1 // Arcade stick
 
-#if HKT7700
-#define NUM_BUTTONS 9
-#elif HKT7300
-#define NUM_BUTTONS 11
-#endif
-
+// Constants
 #define CURRENT_FW_VERSION VER_1_5
+#define BLOCK_SIZE 512
 
+// Version definitions
 #define VER_1_0 0x00
 #define VER_1_1 0x01
 #define VER_1_2 0x02
@@ -48,16 +62,13 @@
 #define VER_1_6 0x0B
 #define VER_1_7 0x0C
 
-// Constants that were missing
-#define BLOCK_SIZE 512
-
-// External variable declarations (variables are defined in maple.c)
+// External variable declarations
 extern uint8_t MemoryCard[];
 extern uint8_t flashData[];
 extern uint16_t color;
 extern bool sd_card_available;
 
-// Flash data accessors (these reference flashData defined in maple.c)
+// Flash data accessors
 #define xCenter flashData[0]
 #define xMin flashData[1]
 #define xMax flashData[2]
@@ -80,7 +91,7 @@ extern bool sd_card_available;
 #define swapXY flashData[19]
 #define swapLR flashData[20]
 #define oledType flashData[21]
-#define triggerMode flashData[22] // 1 = analog, 0 = digital
+#define triggerMode flashData[22]
 #define xDeadzone flashData[23]
 #define xAntiDeadzone flashData[24]
 #define yDeadzone flashData[25]
@@ -90,11 +101,26 @@ extern bool sd_card_available;
 #define rDeadzone flashData[29]
 #define rAntiDeadzone flashData[30]
 #define autoResetEnable flashData[31]
-#define autoResetTimer flashData[32] // units are 2s, max value 8.5 minutes
+#define autoResetTimer flashData[32]
 #define version flashData[33]
 
+// Function declarations
 void updateFlashData();
+void readFlash(void);
+void initialize_peripherals(void);
 
+// Display function declarations
+void clearDisplay(void);
+void putString(char* str, int x, int y, uint16_t color);
+void updateDisplay(void);
+void displayInit(void);
+
+// SD card function declarations
+bool sd_init(void);
+bool sd_write_block(uint32_t block_addr, const uint8_t* data);
+bool sd_read_block(uint32_t block_addr, uint8_t* data);
+
+// Packet structures for Maple communication
 typedef struct PacketHeader_s {
   int8_t Command;
   uint8_t Destination;
@@ -103,8 +129,8 @@ typedef struct PacketHeader_s {
 } PacketHeader;
 
 typedef struct PacketDeviceInfo_s {
-  uint Func;        // Nb. Big endian
-  uint FuncData[3]; // Nb. Big endian
+  uint Func;
+  uint FuncData[3];
   int8_t AreaCode;
   uint8_t ConnectorDirection;
   char ProductName[30];
@@ -113,99 +139,14 @@ typedef struct PacketDeviceInfo_s {
   uint16_t MaxPower;
 } PacketDeviceInfo;
 
-typedef struct PacketAllDeviceInfo_s {
-  uint Func;        // Nb. Big endian
-  uint FuncData[3]; // Nb. Big endian
-  int8_t AreaCode;
-  uint8_t ConnectorDirection;
-  char ProductName[30];
-  char ProductLicense[60];
-  uint16_t StandbyPower;
-  uint16_t MaxPower;
-  char FreeDeviceStatus[80];
-} PacketAllDeviceInfo;
-
-typedef struct PacketMemoryInfo_s {
-  uint Func; // Nb. Big endian
-  uint16_t TotalSize;
-  uint16_t ParitionNumber;
-  uint16_t SystemArea;
-  uint16_t FATArea;
-  uint16_t NumFATBlocks;
-  uint16_t FileInfoArea;
-  uint16_t NumInfoBlocks;
-  uint8_t VolumeIcon;
-  uint8_t Reserved;
-  uint16_t SaveArea;
-  uint16_t NumSaveBlocks;
-  uint Reserved32;
-  uint16_t Reserved16;
-} PacketMemoryInfo;
-
-typedef struct PacketLCDInfo_s {
-  uint Func;            // Nb. Big endian
-  uint8_t dX;           // Number of X-axis dots
-  uint8_t dY;           // Number of Y-axis dots
-  uint8_t GradContrast; // Upper nybble Gradation (bits/dot), lower nybble contrast (0 to 16 steps)
-  uint8_t Reserved;
-} PacketLCDInfo;
-
-typedef struct PacketPuruPuruInfo_s {
-  uint Func;     // Nb. Big endian
-  uint8_t BT;          // Button data
-  uint8_t Reserved[3]; // Reserved (0)
-} PacketTimerCondition;
-
-typedef struct PacketBlockRead_s {
-  uint Func; // Nb. Big endian
-  uint Address;
-  uint8_t Data[BLOCK_SIZE];
-} PacketBlockRead;
-
-typedef struct PuruPuruBlockReadPacket_s {
-  uint Func; // Nb. Big endian
-  uint Address;
-  uint8_t Data[4];
-} PuruPuruBlockReadPacket;
-
-typedef struct TimerBlockReadPacket_s {
-  uint Func; // Nb. Big endian
-  uint8_t Date[8];
-} TimerBlockReadPacket;
-
-// ButtonInfo structure (define it only once, here in maple.h)
-typedef struct ButtonInfo_s {
-    int InputIO;
-    int DCButtonMask;
-} ButtonInfo;
-
-extern ButtonInfo ButtonInfos[];
-
-// Menu structure (define it only once, here in maple.h)  
+// Menu structure
 typedef struct menu_s menu;
-
 struct menu_s {
     char name[14];
-    int type; // 0: submenu, 1: boolean toggle, 2: function, 3: inert
+    int type;
     bool visible;
     bool selected;
     bool on;
-    bool enabled; // control for hidden menu items (ssd1306)
+    bool enabled;
     int (*run)(struct menu_s *self);
 };
-
-// Function declarations for functions implemented in maple.c
-void readFlash(void);
-void updateFlashData(void);
-void initialize_peripherals(void);
-
-// Display function declarations (should be in display.h but declaring here for safety)
-void clearDisplay(void);
-void putString(char* str, int x, int y, uint16_t color);
-void updateDisplay(void);
-void displayInit(void);
-
-// SD card function declarations (should be in sdcard.h but declaring here for safety)
-bool sd_init(void);
-bool sd_write_block(uint32_t block_addr, const uint8_t* data);
-bool sd_read_block(uint32_t block_addr, uint8_t* data);
