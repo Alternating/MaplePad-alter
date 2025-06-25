@@ -18,11 +18,19 @@ set(PICO_CXX_ENABLE_RTTI 0)
 pico_sdk_init()
 
 add_executable(maplepad)
+target_include_directories(maplepad PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_definitions(maplepad PRIVATE 
     PICO_HW
     PICO_RP2350=1
     PICO_NO_HARDWARE_EXCEPTION=1
+    # USB Host configuration
+    CFG_TUSB_HOST=1
+    CFG_TUH_HID=1
+    CFG_TUH_DEVICE_MAX=1
+    CFG_TUH_HID_REPORT_MAX=8
+    # Enable Xbox 360 controller debug (optional)
+    # XBOX360_DEBUG=1
 )
 
 pico_add_extra_outputs(maplepad)
@@ -40,6 +48,7 @@ target_sources(maplepad PRIVATE
     src/font.c 
     src/menu.c
     src/sdcard.c
+    src/xbox360_usb.c
 )
 
 target_link_libraries(maplepad PRIVATE
@@ -54,6 +63,9 @@ target_link_libraries(maplepad PRIVATE
         hardware_i2c
         hardware_spi
         hardware_flash
+        # USB Host libraries
+        tinyusb_host
+        tinyusb_board
         )
 
 # Force C-only compilation for our source files
@@ -68,6 +80,7 @@ set_source_files_properties(
     src/font.c 
     src/menu.c
     src/sdcard.c
+    src/xbox360_usb.c
     PROPERTIES 
     LANGUAGE C
 )

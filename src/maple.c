@@ -1,18 +1,17 @@
 /*
- * MaplePad
+ * MaplePad with Xbox 360 Controller Support
  * Dreamcast controller emulator for Raspberry Pi Pico (RP2040/RP2350)
  * © Charlie Cole 2021
  *
  * Modified by Mackie Kannard-Smith (mackieks / YveltalGriffin) 2022
- * Enhanced for RP2350 with SD card and SSD1309 support
- *
- * Check out the wiring diagram on Github! (https://github.com/mackieks/MaplePad)
+ * Enhanced for RP2350 with SD card, SSD1309 support, and Xbox 360 USB Host
  */
 
 #include "maple.h"
 #include "display.h"
 #include "sdcard.h"
 #include "menu.h"
+#include "xbox360_usb.h"
 
 // RP2350 primary target with RP2040 backward compatibility
 #ifdef PICO_RP2040
@@ -59,13 +58,25 @@ static PIO maple_rx_pio = pio1;
 static uint maple_tx_sm = 0;
 static uint maple_rx_sm = 0;
 
+// Controller input source selection
+typedef enum {
+    INPUT_SOURCE_NONE = 0,
+    INPUT_SOURCE_XBOX360_USB,
+    INPUT_SOURCE_INTERNAL_TEST  // For testing without controller
+} input_source_t;
+
+static input_source_t current_input_source = INPUT_SOURCE_NONE;
+
 // Function prototypes
 void initialize_peripherals(void);
 void initialize_maple_bus(void);
+void initialize_usb_host(void);
 bool save_vmu_to_sd(uint8_t page);
 bool load_vmu_from_sd(uint8_t page);
 void rp2350_optimizations(void);
 void handle_maple_communication(void);
+void update_input_source(void);
+void send_dreamcast_controller_data(dreamcast_state_t* state);
 
 // Flash memory functions
 void readFlash(void) {
@@ -155,6 +166,17 @@ void initialize_maple_bus(void) {
     printf("Maple bus pins GP%d and GP%d initialized for RP2350\n", MAPLE_A, MAPLE_B);
 }
 
+// Initialize USB Host for Xbox 360 controllers
+void initialize_usb_host(void) {
+    printf("Initializing USB Host for Xbox 360 controllers...\n");
+    
+    if (xbox360_init()) {
+        printf("USB Host initialized successfully\n");
+    } else {
+        printf("USB Host initialization failed\n");
+    }
+}
+
 // Enhanced peripheral initialization
 void initialize_peripherals(void) {
     printf("Initializing peripherals...\n");
@@ -176,6 +198,9 @@ void initialize_peripherals(void) {
     
     // Initialize Maple bus
     initialize_maple_bus();
+    
+    // Initialize USB Host for Xbox 360 controllers
+    initialize_usb_host();
     
     // Initialize OLED detection pin
     gpio_init(OLED_PIN);
@@ -265,6 +290,54 @@ void rp2040_compatibility(void) {
 }
 #endif
 
+// Update input source based on connected devices
+void update_input_source(void) {
+    static input_source_t last_source = INPUT_SOURCE_NONE;
+    
+    // Check for Xbox 360 controller
+    if (xbox360_is_connected()) {
+        current_input_source = INPUT_SOURCE_XBOX360_USB;
+    } else {
+        current_input_source = INPUT_SOURCE_NONE;
+    }
+    
+    // Log source changes
+    if (current_input_source != last_source) {
+        switch (current_input_source) {
+            case INPUT_SOURCE_XBOX360_USB:
+                printf("Input source: Xbox 360 Controller (USB)\n");
+                break;
+            case INPUT_SOURCE_NONE:
+                printf("Input source: None (no controller detected)\n");
+                break;
+            default:
+                printf("Input source: Unknown\n");
+                break;
+        }
+        last_source = current_input_source;
+    }
+}
+
+// Send controller data to Dreamcast via Maple bus
+void send_dreamcast_controller_data(dreamcast_state_t* state) {
+    // TODO: Implement actual Maple bus transmission using PIO
+    // This function will encode the controller state into Maple bus format
+    // and transmit it to the Dreamcast
+    
+    // For now, just log the data being sent (debug)
+    #ifdef MAPLE_DEBUG
+    printf("Sending to DC: btns=%04X, LT=%d, RT=%d, X=%d, Y=%d\n",
+           state->buttons, state->left_trigger, state->right_trigger,
+           state->stick_x, state->stick_y);
+    #endif
+    
+    // Placeholder for PIO transmission
+    // The actual implementation would:
+    // 1. Format data according to Maple bus protocol
+    // 2. Load data into PIO TX FIFO
+    // 3. Trigger PIO state machine to send data
+}
+
 // Page cycling function using PAGE_BUTTON
 void check_page_button(void) {
     static uint32_t last_page_press = 0;
@@ -293,45 +366,80 @@ void check_page_button(void) {
     button_was_pressed = button_pressed;
 }
 
-// Main Maple bus communication handler
+// Main Maple bus communication handler with Xbox 360 input
 void handle_maple_communication(void) {
-    // TODO: Implement actual Maple bus communication using PIO
-    // This is where the core Dreamcast communication protocol would be handled
-    
-    // For now, just handle basic status and VMU operations
     static uint32_t last_status_update = 0;
+    static uint32_t last_controller_update = 0;
     uint32_t current_time = time_us_32();
     
-    if ((current_time - last_status_update) > 1000000) { // Update every second
-        // Update display with current status
+    // Service USB Host stack for Xbox 360 controllers
+    xbox360_task();
+    
+    // Update input source detection
+    update_input_source();
+    
+    // Handle controller input at 60Hz (16.67ms intervals)
+    if ((current_time - last_controller_update) > 16670) {
+        if (current_input_source == INPUT_SOURCE_XBOX360_USB) {
+            dreamcast_state_t* dc_state = xbox360_get_dreamcast_state();
+            if (dc_state) {
+                // Send controller data to Dreamcast
+                send_dreamcast_controller_data(dc_state);
+            }
+        }
+        last_controller_update = current_time;
+    }
+    
+    // Update display at 1Hz (1 second intervals)
+    if ((current_time - last_status_update) > 1000000) {
         clearDisplay();
         putString("MaplePad", 0, 0, color);
         
+        // Show current VMU page
         char page_str[16];
         sprintf(page_str, "Page: %d", currentPage);
         putString(page_str, 0, 1, color);
         
-        if (sd_card_available) {
-            putString("SD: OK", 0, 2, color);
-        } else {
-            putString("SD: --", 0, 2, color);
+        // Show input source
+        switch (current_input_source) {
+            case INPUT_SOURCE_XBOX360_USB:
+                putString("Xbox360: OK", 0, 2, color);
+                break;
+            case INPUT_SOURCE_NONE:
+                putString("No Controller", 0, 2, color);
+                break;
+            default:
+                putString("Input: Unknown", 0, 2, color);
+                break;
         }
         
-        putString("Waiting...", 0, 3, color);
-        updateDisplay();
+        // Show SD card status
+        if (sd_card_available) {
+            putString("SD: OK", 0, 3, color);
+        } else {
+            putString("SD: --", 0, 3, color);
+        }
         
+        updateDisplay();
         last_status_update = current_time;
     }
     
     // Check for page button presses
     check_page_button();
+    
+    // TODO: Handle incoming Maple bus communication from Dreamcast
+    // This would include:
+    // - Device info requests
+    // - Controller data requests  
+    // - VMU memory operations
+    // - Rumble commands
 }
 
 // Main function
 int main() {
     stdio_init_all();
     
-    printf("MaplePad Starting...\n");
+    printf("MaplePad with Xbox 360 Controller Support Starting...\n");
     printf("Firmware Version: %02X\n", CURRENT_FW_VERSION);
     
 #ifdef PICO_RP2040
@@ -348,16 +456,17 @@ int main() {
     // Show startup splash
     clearDisplay();
     putString("MaplePad", 0, 0, color);
-    putString("Initializing", 0, 1, color);
+    putString("Xbox360 Ready", 0, 1, color);
     char version_str[16];
     sprintf(version_str, "v%02X", CURRENT_FW_VERSION);
     putString(version_str, 0, 2, color);
+    putString("Insert Controller", 0, 3, color);
     updateDisplay();
-    sleep_ms(2000);
+    sleep_ms(3000);
     
-    printf("Initialization complete. Starting Maple communication...\n");
+    printf("Initialization complete. Starting Maple communication with Xbox 360 support...\n");
     
-    // Main application loop - focused on Maple bus communication
+    // Main application loop - Xbox 360 to Dreamcast bridge
     while (true) {
         handle_maple_communication();
         

@@ -1,5 +1,5 @@
-// FILE: src/maple.h - UPDATED PIN DEFINITIONS
-// Replace your maple.h pin definitions with these
+// FILE: src/maple.h - UPDATED WITH XBOX 360 USB HOST SUPPORT
+// Enhanced pin definitions and Xbox 360 controller integration
 
 #pragma once
 
@@ -26,13 +26,23 @@
 #include "pico/time.h"
 #include "state_machine.h"
 
-// OPTIMIZED PIN ASSIGNMENTS - NO CONTROLLER INPUTS
+// USB Host support for Xbox 360 controllers
+#include "tusb.h"
+#include "host/usbh.h"
+#include "class/hid/hid_host.h"
+
+// OPTIMIZED PIN ASSIGNMENTS - MAPLE BUS + USB HOST
 #define MAPLE_A 0   // Dedicated Maple bus pin A
 #define MAPLE_B 1   // Dedicated Maple bus pin B
 
 // Configuration pins
 #define OLED_PIN 12      // Display type detection
 #define PAGE_BUTTON 13   // VMU page control
+
+// USB Host pins (RP2350/RP2040 USB controller)
+// Note: USB pins are handled internally by the RP2350/RP2040 USB controller
+// External USB-C connector connects to internal USB peripheral
+// No additional GPIO pins required for USB Host functionality
 
 // Legacy compatibility (no longer used for GPIO inputs)
 #define INPUT_ACT 14     // Available for other use
@@ -44,7 +54,7 @@
 #define HKT7300 1 // Arcade stick
 
 // Constants
-#define CURRENT_FW_VERSION VER_1_5
+#define CURRENT_FW_VERSION VER_1_6  // Updated for Xbox 360 support
 #define BLOCK_SIZE 512
 
 // Version definitions
@@ -59,7 +69,7 @@
 #define VER_1_4d 0x08
 #define VER_1_4e 0x09
 #define VER_1_5 0x0A
-#define VER_1_6 0x0B
+#define VER_1_6 0x0B  // Xbox 360 support added
 #define VER_1_7 0x0C
 
 // External variable declarations
@@ -103,6 +113,11 @@ extern bool sd_card_available;
 #define autoResetEnable flashData[31]
 #define autoResetTimer flashData[32]
 #define version flashData[33]
+// New Xbox 360 configuration options
+#define xbox360Enable flashData[34]       // Enable/disable Xbox 360 input
+#define xbox360DeadzoneX flashData[35]    // Xbox 360 stick deadzone X
+#define xbox360DeadzoneY flashData[36]    // Xbox 360 stick deadzone Y
+#define xbox360TriggerDeadzone flashData[37] // Xbox 360 trigger deadzone
 
 // Function declarations
 void updateFlashData();
@@ -119,6 +134,11 @@ void displayInit(void);
 bool sd_init(void);
 bool sd_write_block(uint32_t block_addr, const uint8_t* data);
 bool sd_read_block(uint32_t block_addr, uint8_t* data);
+
+// Xbox 360 controller function declarations
+bool xbox360_init(void);
+void xbox360_task(void);
+bool xbox360_is_connected(void);
 
 // Packet structures for Maple communication
 typedef struct PacketHeader_s {
@@ -139,6 +159,15 @@ typedef struct PacketDeviceInfo_s {
   uint16_t MaxPower;
 } PacketDeviceInfo;
 
+// Dreamcast controller state structure (matches Xbox 360 output)
+typedef struct dreamcast_state_s {
+    uint16_t buttons;        // Dreamcast button mapping
+    uint8_t  left_trigger;   // 0-255
+    uint8_t  right_trigger;  // 0-255
+    uint8_t  stick_x;        // 0-255 (128 = center)
+    uint8_t  stick_y;        // 0-255 (128 = center)
+} dreamcast_state_t;
+
 // Menu structure
 typedef struct menu_s menu;
 struct menu_s {
@@ -150,3 +179,15 @@ struct menu_s {
     bool enabled;
     int (*run)(struct menu_s *self);
 };
+
+// USB Host configuration structure
+typedef struct usb_host_config_s {
+    bool xbox360_enabled;
+    uint8_t stick_deadzone_x;
+    uint8_t stick_deadzone_y;
+    uint8_t trigger_deadzone;
+    bool auto_detect;
+} usb_host_config_t;
+
+// Global USB Host configuration
+extern usb_host_config_t usb_config;
